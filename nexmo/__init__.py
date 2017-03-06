@@ -1,3 +1,5 @@
+from nexmo import response
+
 __version__ = '1.4.0'
 
 
@@ -287,3 +289,11 @@ class Client():
     token = jwt.encode(payload, self.private_key, algorithm='RS256')
 
     return dict(self.headers, Authorization=b'Bearer ' + token)
+
+
+def create_response():
+  """
+  Create a nexmo response object.
+  :rtype: response.Response
+  """
+  return response.Response()
