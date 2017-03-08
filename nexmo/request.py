@@ -3,7 +3,7 @@ import warnings
 
 try:
     from django.http import HttpResponse
-except Exception as ex:
+except ImportError:
     HttpResponse = None
 
 
@@ -13,7 +13,6 @@ class RequestAction(object):
     """
     action = None
     options = None
-
 
     def _snake_case_to_camel(self, name):
         """
@@ -47,8 +46,7 @@ class RequestAction(object):
                 continue
             if sub_type is not None:
                 if filter(lambda itm: not isinstance(itm, sub_type), the_list):
-                    raise ValueError('"{name}" is must be a list of "{type}"'
-                                 .format(name=name, type=sub_type))
+                    raise ValueError('"{name}" is must be a list of "{type}"'.format(name=name, type=sub_type))
 
             if the_list and not isinstance(the_list, list):
                 raise ValueError('"{name}" is must be a list, but got "{type}" instead.'
@@ -342,7 +340,8 @@ class Stream(RequestAction):
 
 
 class Input(RequestAction):
-    def __init__(self, event_url=None, time_out=3, max_digits=None, submit_on_hash=False, event_method='POST', **kwargs):
+    def __init__(self, event_url=None, time_out=3, max_digits=None, submit_on_hash=False, event_method='POST',
+                 **kwargs):
         """
         :type event_url: list<str>
         :param event_url: Nexmo sends the digits pressed by the callee to this URL after timeOut pause in
