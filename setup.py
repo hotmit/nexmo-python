@@ -15,6 +15,6 @@ setup(name='nexmo',
   author='Tim Craft',
   author_email='mail@timcraft.com',
   license='MIT',
-  packages=['nexmo'],
+  packages=['nexmo', 'nexmo.ncco'],
   platforms=['any'],
   install_requires=['requests', 'PyJWT', 'cryptography'])

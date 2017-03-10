@@ -1,10 +1,25 @@
 import json
+import re
 import warnings
+import six
+
 
 try:
     from django.http import HttpResponse
 except ImportError:
     HttpResponse = None
+
+
+def d(obj, header=''):
+    if isinstance(obj, list) or isinstance(obj, dict):
+        if header:
+            print('{} -> '.format(header))
+        print(json.dumps(obj, skipkeys=True, indent=2))
+    else:
+        if header:
+            print('{} -> {}'.format(header, str(obj)))
+        else:
+            print(str(obj))
 
 
 class RequestAction(object):
@@ -111,7 +126,7 @@ class RequestAction(object):
         """
         self.options.clear()
 
-    def _get_dict(self):
+    def dict(self):
         """
         Get the options dictionary
 
@@ -124,7 +139,8 @@ class RequestAction(object):
         return options
 
     def __iter__(self):
-        return self._get_dict().iteritems()
+        dct = self.dict()
+        return six.iteritems(dct)
 
 
 class Record(RequestAction):
@@ -362,25 +378,28 @@ class Input(RequestAction):
 
 
 class RequestJsonEncoder(json.JSONEncoder):
-        def __init__(self, *args, **kwargs):
-            super(RequestJsonEncoder, self).__init__(*args, **kwargs)
+    """
+    Encode the request json.
+    """
+    def __init__(self, *args, **kwargs):
+        super(RequestJsonEncoder, self).__init__(*args, **kwargs)
 
-        def normalize_dict(self, obj):
-            """
-            Convert bool to lower case string True become "true"
-            """
-            if isinstance(obj, bool):
-                return str(obj).lower()
-            if isinstance(obj, (list, tuple)):
-                return [self.normalize_dict(item) for item in obj]
-            if isinstance(obj, dict):
-                return {key: self.normalize_dict(value) for key, value in obj.items()}
-            return obj
+    def normalize_dict(self, obj):
+        """
+        Convert bool to lower case string True become "true"
+        """
+        if isinstance(obj, bool):
+            return str(obj).lower()
+        if isinstance(obj, (list, tuple)):
+            return [self.normalize_dict(item) for item in obj]
+        if isinstance(obj, dict):
+            return {key: self.normalize_dict(value) for key, value in obj.items()}
+        return obj
 
-        def default(self, o):
-            if isinstance(o, RequestAction):
-                return self.normalize_dict(dict(o))
-            return str(self.normalize_dict(o))
+    def default(self, o):
+        if isinstance(o, RequestAction):
+            return self.normalize_dict(dict(o))
+        return str(self.normalize_dict(o))
 
 
 class Request:
@@ -431,3 +450,64 @@ class Request:
 
         json_response = self.get_json_string()
         return HttpResponse(json_response, content_type=self.JSON_MIME)
+
+
+class Response(object):
+    """
+    The response for Nexmo Call Control Objects action.
+    """
+
+    uuid = None
+    conversation_uuid = None
+    dtmf = None
+    timed_out = None
+
+    def __init__(self, json_string):
+        """
+        This will populate all the json key into this response property.
+        """
+        if isinstance(json_string, bytes):
+            json_string = json_string.decode('utf-8')
+
+        dct = json.loads(json_string)
+
+        for k, v in dct.items():
+            attr_name = self.clean_attr_name(k)
+            setattr(self, attr_name, v)
+
+    def clean_attr_name(self, attr_name):
+        """
+        Make sure the name conform to python naming convention.
+
+        :param attr_name: the property name
+        :rtype str
+        """
+        clean = re.sub('([a-z0-9])([A-Z])', '\g<1> \g<2>', str(attr_name)).replace('-', ' ').replace('_', ' ')
+        words = re.sub('\s+', ' ', clean).split(' ')
+        return '_'.join(words).lower()
+
+    def dict(self):
+        """
+        Return a dict of all the properties of this object
+        :rtype dict
+        """
+        return self.__dict__
+
+    def __iter__(self):
+        """
+        Get the iter for convert this object to dict
+        """
+        return six.iteritems(self.dict())
+
+    def get(self, prop_name, default_value=None):
+        """
+        Get the property value
+
+        :param prop_name: property name. eg. .get('conversation_uuid')
+        :param default_value: the default value if the property does not exist
+        :return: the property value
+        """
+        return getattr(self, prop_name, default_value)
+
+    def __getattr__(self, item):
+        return self.get(item)
